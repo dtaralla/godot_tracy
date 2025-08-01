@@ -2,7 +2,9 @@
 
 #include "core/config/engine.h"
 #include "core/object/object.h"
+#include "core/templates/hash_map.h"
 #include "tracy/public/common/TracyColor.hpp"
+#include "tracy/public/tracy/TracyC.h"
 
 class TracyProfiler : public Object {
 	GDCLASS(TracyProfiler, Object);
@@ -31,4 +33,16 @@ public:
 	void zone_end(uint64_t p_zone_id);
 
 	void message(const String &p_text, const Color &p_color = Color(1.0, 1.0, 1.0, 1.0));
+
+	uint64_t zone_begin_script(const String &p_zone_name, uint32_t p_line, const String &p_source, const String &p_function);
+
+private:
+
+#ifdef TRACY_ENABLE
+	HashMap<String, CharString> CStrs;
+	HashMap<String, uint64_t> SrcLocs;
+
+	CharString* GetCachedStr(const String& str);
+	uint64_t GetCachedSrcLoc(uint32_t line, const String& source, const String& function, const String& name);
+#endif
 };

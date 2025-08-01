@@ -7,6 +7,7 @@
 TracyProfiler *TracyProfiler::singleton = nullptr;
 
 void TracyProfiler::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("zone_begin_script", "zone_name", "line", "source", "function"), &TracyProfiler::zone_begin_script);
 	ClassDB::bind_method(D_METHOD("zone_begin", "zone_name"), &TracyProfiler::zone_begin);
 	ClassDB::bind_method(D_METHOD("zone_begin_v", "zone_name", "value"), &TracyProfiler::zone_begin_v);
 	ClassDB::bind_method(D_METHOD("zone_begin_t", "zone_name", "text"), &TracyProfiler::zone_begin_t);
@@ -67,6 +68,20 @@ uint64_t TracyProfiler::zone_begin(const String &p_zone_name) {
 
 	TracyIdConverter converter;
 	converter.tracy_id = zone_id;
+	return converter.godot_id;
+#else
+	return 0;
+#endif
+}
+
+uint64_t TracyProfiler::zone_begin_script(const String &p_zone_name, uint32_t p_line, const String &p_source, const String &p_function) {
+#ifdef TRACY_ENABLE
+	static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
+
+	const uint64_t srcLocId = GetCachedSrcLoc(p_line, p_source, p_function, p_zone_name);
+
+	TracyIdConverter converter;
+	converter.tracy_id = ___tracy_emit_zone_begin_alloc(srcLocId, true);
 	return converter.godot_id;
 #else
 	return 0;
@@ -255,4 +270,33 @@ void TracyProfiler::message(const String &p_text, const Color &p_color) {
 	const CharString c = p_text.utf8();
 	TracyCMessageC(c.ptr(), c.size(), to_rgb32(p_color));
 #endif
+}
+
+CharString* TracyProfiler::GetCachedStr(const String& str) {
+#ifdef TRACY_ENABLE
+	CharString* cstr = CStrs.getptr(str);
+	if (cstr == nullptr) {
+		decltype(CStrs)::Iterator it = CStrs.insert(str, str.utf8());
+		cstr = &it->value;
+	}
+	return cstr;
+#endif
+	return nullptr;
+}
+
+uint64_t TracyProfiler::GetCachedSrcLoc(uint32_t line, const String& source, const String& function, const String& name) {
+#ifdef TRACY_ENABLE
+	if (const uint64_t* id = SrcLocs.getptr(name)) {
+		return *id;
+	}
+
+	CharString* src = GetCachedStr(source);
+	CharString* func = GetCachedStr(function);
+	CharString* n = GetCachedStr(name);
+	const uint64_t id = ___tracy_alloc_srcloc_name(line, src->ptr(), src->length(), func->ptr(), func->length(), n->ptr(), n->length());
+
+	SrcLocs.insert(name, id);
+	return id;
+#endif
+	return 0;
 }
