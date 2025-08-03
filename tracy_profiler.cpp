@@ -293,7 +293,7 @@ uint64_t TracyProfiler::GetCachedSrcLoc(uint32_t line, const String& source, con
 	CharString* src = GetCachedStr(source);
 	CharString* func = GetCachedStr(function);
 	CharString* n = GetCachedStr(name);
-	const uint64_t id = ___tracy_alloc_srcloc_name(line, src->ptr(), src->length(), func->ptr(), func->length(), n->ptr(), n->length());
+	const uint64_t id = ___tracy_alloc_srcloc_name(line, src->ptr(), src->length(), func->ptr(), func->length(), n->ptr(), n->length(), 0);
 
 	SrcLocs.insert(name, id);
 	return id;
