@@ -41,8 +41,8 @@ private:
 #ifdef TRACY_ENABLE
 	HashMap<String, CharString> CStrs;
 	HashMap<String, uint64_t> SrcLocs;
+#endif
 
 	CharString* GetCachedStr(const String& str);
 	uint64_t GetCachedSrcLoc(uint32_t line, const String& source, const String& function, const String& name);
-#endif
 };
