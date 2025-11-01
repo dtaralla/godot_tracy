@@ -15,7 +15,8 @@ CharString Profiler ::stringify_method(const StringName &p_method, const Variant
 	out += ")";
 	CharString c = out.utf8();
 	if (c.size() >= std::numeric_limits<uint16_t>::max()) {
-		c.resize(std::numeric_limits<uint16_t>::max() - 1);
+		c.resize_uninitialized(std::numeric_limits<uint16_t>::max() - 1);
+		c[std::numeric_limits<uint16_t>::max() - 2] = '\0';
 	}
 	return c;
 #else
