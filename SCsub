@@ -37,5 +37,5 @@ if "tracy_on_demand" in env and env["tracy_on_demand"]:
     env.Append(CPPDEFINES=["TRACY_ON_DEMAND"])
     env.Append(VSHINT_DEFINES=["TRACY_ON_DEMAND"])
 
-env_tracy.add_source_files(env.modules_sources, tracy_sources)
+# env_tracy.add_source_files(env.modules_sources, tracy_sources)
 env_tracy.add_source_files(env.modules_sources, "*.cpp")
