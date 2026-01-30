@@ -1,6 +1,7 @@
 #include "tracy_profiler.h"
 
 #include "core/math/color.h"
+#include "core/object/class_db.h"
 #include "tracy/public/tracy/Tracy.hpp"
 #include "tracy/public/tracy/TracyC.h"
 

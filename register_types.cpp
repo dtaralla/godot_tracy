@@ -1,6 +1,7 @@
 #include "register_types.h"
 
 #include "core/config/engine.h"
+#include "core/object/class_db.h"
 #include "tracy_profiler.h"
 
 void initialize_godot_tracy_module(ModuleInitializationLevel p_level) {
@@ -12,7 +13,7 @@ void initialize_godot_tracy_module(ModuleInitializationLevel p_level) {
 		TracyProfiler::init_singleton();
 
 	} else if (p_level == ModuleInitializationLevel::MODULE_INITIALIZATION_LEVEL_SERVERS) {
-		ClassDB::register_class<TracyProfiler>();
+		GDREGISTER_CLASS(TracyProfiler);
 		Engine::get_singleton()->add_singleton(Engine::Singleton("TracyProfiler", TracyProfiler::get_singleton()));
 	}
 }
