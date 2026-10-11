@@ -2,6 +2,7 @@
 
 #include "core/config/engine.h"
 #include "core/object/object.h"
+#include "core/profiling/profiling.h"
 #include "core/templates/hash_map.h"
 #include "tracy/public/common/TracyColor.hpp"
 #include "tracy/public/tracy/TracyC.h"
