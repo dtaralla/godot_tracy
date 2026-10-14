@@ -41,13 +41,6 @@ TracyProfiler *TracyProfiler::get_singleton() {
 	return singleton;
 }
 
-#ifdef TRACY_ENABLE
-union TracyIdConverter {
-	___tracy_c_zone_context tracy_id;
-	uint64_t godot_id;
-};
-#endif
-
 uint32_t to_rgb32(const Color &p_color) {
 	uint32_t c = (uint8_t)Math::round(p_color.r * 255);
 	c <<= 8;
@@ -58,18 +51,44 @@ uint32_t to_rgb32(const Color &p_color) {
 	return c;
 }
 
+#ifdef TRACY_ENABLE
+#ifdef TRACY_ON_DEMAND
+static uint64_t to_godot_id(___tracy_c_zone_context c) {
+	return static_cast<uint64_t>(c.id) << 32 | c.active;
+}
+static ___tracy_c_zone_context from_godot_id(uint64_t c) {
+	___tracy_c_zone_context z;
+	z.id = static_cast<uint32_t>(c >> 32);
+	z.active = static_cast<int32_t>(c & 0xFFFFFFFF);
+	z.connectionId = tracy::GetProfiler().ConnectionId();
+	return z;
+}
+#else
+static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
+
+union TracyIdConverter {
+	___tracy_c_zone_context tracy_id;
+	uint64_t godot_id;
+};
+static uint64_t to_godot_id(___tracy_c_zone_context c) {
+	return TracyIdConverter{c}.godot_id;
+}
+static ___tracy_c_zone_context from_godot_id(uint64_t c) {
+	TracyIdConverter z;
+	z.godot_id = c;
+	return z.tracy_id;
+}
+#endif
+#endif
+
 uint64_t TracyProfiler::zone_begin(const String &p_zone_name) {
 #ifdef TRACY_ENABLE
-	static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
-
-	TracyCZone(zone_id, true);
+	TracyCZone(zone_id, true)
 
 	const CharString c = p_zone_name.utf8();
-	TracyCZoneName(zone_id, c.ptr(), c.size());
+	TracyCZoneName(zone_id, c.ptr(), c.size())
 
-	TracyIdConverter converter;
-	converter.tracy_id = zone_id;
-	return converter.godot_id;
+	return to_godot_id(zone_id);
 #else
 	return 0;
 #endif
@@ -77,13 +96,9 @@ uint64_t TracyProfiler::zone_begin(const String &p_zone_name) {
 
 uint64_t TracyProfiler::zone_begin_script(const String &p_zone_name, uint32_t p_line, const String &p_source, const String &p_function) {
 #ifdef TRACY_ENABLE
-	static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
-
 	const uint64_t srcLocId = GetCachedSrcLoc(p_line, p_source, p_function, p_zone_name);
 
-	TracyIdConverter converter;
-	converter.tracy_id = ___tracy_emit_zone_begin_alloc(srcLocId, true);
-	return converter.godot_id;
+	return to_godot_id(___tracy_emit_zone_begin_alloc(srcLocId, true));
 #else
 	return 0;
 #endif
@@ -91,18 +106,14 @@ uint64_t TracyProfiler::zone_begin_script(const String &p_zone_name, uint32_t p_
 
 uint64_t TracyProfiler::zone_begin_v(const String &p_zone_name, uint64_t p_value) {
 #ifdef TRACY_ENABLE
-	static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
-
-	TracyCZone(zone_id, true);
+	TracyCZone(zone_id, true)
 
 	const CharString c = p_zone_name.utf8();
-	TracyCZoneName(zone_id, c.ptr(), c.size());
+	TracyCZoneName(zone_id, c.ptr(), c.size())
 
-	TracyCZoneValue(zone_id, p_value);
+	TracyCZoneValue(zone_id, p_value)
 
-	TracyIdConverter converter;
-	converter.tracy_id = zone_id;
-	return converter.godot_id;
+	return to_godot_id(zone_id);
 #else
 	return 0;
 #endif
@@ -110,19 +121,15 @@ uint64_t TracyProfiler::zone_begin_v(const String &p_zone_name, uint64_t p_value
 
 uint64_t TracyProfiler::zone_begin_t(const String &p_zone_name, const String &p_text) {
 #ifdef TRACY_ENABLE
-	static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
-
-	TracyCZone(zone_id, true);
+	TracyCZone(zone_id, true)
 
 	const CharString c = p_zone_name.utf8();
-	TracyCZoneName(zone_id, c.ptr(), c.size());
+	TracyCZoneName(zone_id, c.ptr(), c.size())
 
 	const CharString t = p_zone_name.utf8();
-	TracyCZoneText(zone_id, t.ptr(), t.size());
+	TracyCZoneText(zone_id, t.ptr(), t.size())
 
-	TracyIdConverter converter;
-	converter.tracy_id = zone_id;
-	return converter.godot_id;
+	return to_godot_id(zone_id);
 #else
 	return 0;
 #endif
@@ -130,20 +137,16 @@ uint64_t TracyProfiler::zone_begin_t(const String &p_zone_name, const String &p_
 
 uint64_t TracyProfiler::zone_begin_tv(const String &p_zone_name, const String &p_text, uint64_t p_value) {
 #ifdef TRACY_ENABLE
-	static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
-
 	TracyCZone(zone_id, true);
 
 	const CharString c = p_zone_name.utf8();
-	TracyCZoneName(zone_id, c.ptr(), c.size());
+	TracyCZoneName(zone_id, c.ptr(), c.size())
 
 	const CharString t = p_zone_name.utf8();
-	TracyCZoneText(zone_id, t.ptr(), t.size());
-	TracyCZoneValue(zone_id, p_value);
+	TracyCZoneText(zone_id, t.ptr(), t.size())
+	TracyCZoneValue(zone_id, p_value)
 
-	TracyIdConverter converter;
-	converter.tracy_id = zone_id;
-	return converter.godot_id;
+	return to_godot_id(zone_id);
 #else
 	return 0;
 #endif
@@ -151,18 +154,14 @@ uint64_t TracyProfiler::zone_begin_tv(const String &p_zone_name, const String &p
 
 uint64_t TracyProfiler::zone_begin_c(const String &p_zone_name, const Color &p_color) {
 #ifdef TRACY_ENABLE
-	static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
-
-	TracyCZone(zone_id, true);
+	TracyCZone(zone_id, true)
 
 	const CharString c = p_zone_name.utf8();
-	TracyCZoneName(zone_id, c.ptr(), c.size());
+	TracyCZoneName(zone_id, c.ptr(), c.size())
 
-	TracyCZoneColor(zone_id, to_rgb32(p_color));
+	TracyCZoneColor(zone_id, to_rgb32(p_color))
 
-	TracyIdConverter converter;
-	converter.tracy_id = zone_id;
-	return converter.godot_id;
+	return to_godot_id(zone_id);
 #else
 	return 0;
 #endif
@@ -170,20 +169,16 @@ uint64_t TracyProfiler::zone_begin_c(const String &p_zone_name, const Color &p_c
 
 uint64_t TracyProfiler::zone_begin_ct(const String &p_zone_name, const Color &p_color, const String &p_text) {
 #ifdef TRACY_ENABLE
-	static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
-
-	TracyCZone(zone_id, true);
+	TracyCZone(zone_id, true)
 
 	const CharString c = p_zone_name.utf8();
-	TracyCZoneName(zone_id, c.ptr(), c.size());
+	TracyCZoneName(zone_id, c.ptr(), c.size())
 
-	TracyCZoneColor(zone_id, to_rgb32(p_color));
+	TracyCZoneColor(zone_id, to_rgb32(p_color))
 	const CharString t = p_zone_name.utf8();
-	TracyCZoneText(zone_id, t.ptr(), t.size());
+	TracyCZoneText(zone_id, t.ptr(), t.size())
 
-	TracyIdConverter converter;
-	converter.tracy_id = zone_id;
-	return converter.godot_id;
+	return to_godot_id(zone_id);
 #else
 	return 0;
 #endif
@@ -191,19 +186,15 @@ uint64_t TracyProfiler::zone_begin_ct(const String &p_zone_name, const Color &p_
 
 uint64_t TracyProfiler::zone_begin_cv(const String &p_zone_name, const Color &p_color, uint64_t p_value) {
 #ifdef TRACY_ENABLE
-	static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
-
-	TracyCZone(zone_id, true);
+	TracyCZone(zone_id, true)
 
 	const CharString c = p_zone_name.utf8();
-	TracyCZoneName(zone_id, c.ptr(), c.size());
+	TracyCZoneName(zone_id, c.ptr(), c.size())
 
-	TracyCZoneColor(zone_id, to_rgb32(p_color));
-	TracyCZoneValue(zone_id, p_value);
+	TracyCZoneColor(zone_id, to_rgb32(p_color))
+	TracyCZoneValue(zone_id, p_value)
 
-	TracyIdConverter converter;
-	converter.tracy_id = zone_id;
-	return converter.godot_id;
+	return to_godot_id(zone_id);
 #else
 	return 0;
 #endif
@@ -211,21 +202,17 @@ uint64_t TracyProfiler::zone_begin_cv(const String &p_zone_name, const Color &p_
 
 uint64_t TracyProfiler::zone_begin_ctv(const String &p_zone_name, const Color &p_color, const String &p_text, uint64_t p_value) {
 #ifdef TRACY_ENABLE
-	static_assert(sizeof(___tracy_c_zone_context) == sizeof(uint64_t));
-
-	TracyCZone(zone_id, true);
+	TracyCZone(zone_id, true)
 
 	const CharString c = p_zone_name.utf8();
-	TracyCZoneName(zone_id, c.ptr(), c.size());
+	TracyCZoneName(zone_id, c.ptr(), c.size())
 
-	TracyCZoneColor(zone_id, to_rgb32(p_color));
+	TracyCZoneColor(zone_id, to_rgb32(p_color))
 	const CharString t = p_zone_name.utf8();
-	TracyCZoneText(zone_id, t.ptr(), t.size());
-	TracyCZoneValue(zone_id, p_value);
+	TracyCZoneText(zone_id, t.ptr(), t.size())
+	TracyCZoneValue(zone_id, p_value)
 
-	TracyIdConverter converter;
-	converter.tracy_id = zone_id;
-	return converter.godot_id;
+	return to_godot_id(zone_id);
 #else
 	return 0;
 #endif
@@ -233,36 +220,27 @@ uint64_t TracyProfiler::zone_begin_ctv(const String &p_zone_name, const Color &p
 
 void TracyProfiler::zone_set_color(uint64_t p_zone_id, const Color &p_color) {
 #ifdef TRACY_ENABLE
-	TracyIdConverter converter;
-	converter.godot_id = p_zone_id;
-	TracyCZoneColor(converter.tracy_id, to_rgb32(p_color));
+	TracyCZoneColor(from_godot_id(p_zone_id), to_rgb32(p_color))
 #endif
 }
 
 void TracyProfiler::zone_set_text(uint64_t p_zone_id, const String &p_text) {
 #ifdef TRACY_ENABLE
-	TracyIdConverter converter;
-	converter.godot_id = p_zone_id;
-
 	const CharString c = p_text.utf8();
 
-	TracyCZoneText(converter.tracy_id, c.ptr(), c.size());
+	TracyCZoneText(from_godot_id(p_zone_id), c.ptr(), c.size())
 #endif
 }
 
 void TracyProfiler::zone_set_value(uint64_t p_zone_id, uint64_t p_value) {
 #ifdef TRACY_ENABLE
-	TracyIdConverter converter;
-	converter.godot_id = p_zone_id;
-	TracyCZoneValue(converter.tracy_id, p_value);
+	TracyCZoneValue(from_godot_id(p_zone_id), p_value)
 #endif
 }
 
 void TracyProfiler::zone_end(uint64_t p_zone_id) {
 #ifdef TRACY_ENABLE
-	TracyIdConverter converter;
-	converter.godot_id = p_zone_id;
-	TracyCZoneEnd(converter.tracy_id);
+	TracyCZoneEnd(from_godot_id(p_zone_id))
 #endif
 }
 
