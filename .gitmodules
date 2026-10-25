@@ -1,3 +1,4 @@
 [submodule "tracy"]
 	path = tracy
-	url = https://dtaralla@github.com/wolfpld/tracy.git
+	url = https://dtaralla@github.com/dtaralla/tracy.git
+	branch = custom_tracy
