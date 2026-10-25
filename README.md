@@ -1,8 +1,11 @@
 # GodotTracy
 
-[Tracy Profiler](https://github.com/wolfpld/tracy) is a [Godot Engine](https://github.com/godotengine/godot) module that can be used to profile C++ and scripting at the same time, so to have good insight about what your game is really doing to take the correct actions to heal your game performance.
+> [!NOTE]
+> Updated version of @AndreaCatania's [godot_tracy module](https://github.com/AndreaCatania/godot_tracy).
+> It was itself based of this [module](https://github.com/Pineapple/GodotTracy).
+> Tested with Godot 4.7.2, Tracy 0.14.1
 
-> This module is a more feature reach and uptodated spin-off of this one [module](https://github.com/Pineapple/GodotTracy).
+[Tracy Profiler](https://github.com/wolfpld/tracy) is a [Godot Engine](https://github.com/godotengine/godot) module that can be used to profile C++ and scripting at the same time, so to have good insight about what your game is really doing to take the correct actions to heal your game performance.
 
 ![](godot_tracy_sample.gif)
 
@@ -20,7 +23,7 @@ The first step is to include this module into your godot application module dire
 
 You can use the following command:
 ```
-git clone --recurse-submodules https://github.com/AndreaCatania/godot_tracy.git
+git clone --recurse-submodules https://github.com/dtaralla/godot_tracy.git
 ```
 
 > Note: If you don't use the above command make sure to execute the following one, so to fetch the `Tracy` repository.
@@ -47,12 +50,14 @@ If the above command succeeds, the following binary is produced: `Tracy-release`
 
 ### How to enable tracy
 
-You have to explicitly enable it by adding `tracy_enable=true` to your SCons build command. This is an example:
+As of Godot 4.7, tracy is now a [supported profiler](https://docs.godotengine.org/en/stable/engine_details/development/profiling/tracy.html).
+If you installed this module in your own local Godot source, you can build the editor with tracy support like so (`.bat` file command):
+```batch
+scons platform=windows target=editor^
+  debug_symbols=yes^
+  CCFLAGS="-fno-omit-frame-pointer -fno-inline -ggdb3"^
+  profiler=tracy profiler_path=%~dp0modules\godot_tracy\tracy
 ```
-scons p=x11 target=release_debug tracy_enable=yes CCFLAGS="-fno-omit-frame-pointer -fno-inline -ggdb3"
-```
-
-> Note: The command `CCFLAGS="-fno-omit-frame-pointer -fno-inline -ggdb3"` will compile the game with all the needed debug info needed to properly profile the game.
 
 ### Add tracy to godot C++
 
@@ -66,27 +71,27 @@ At this point you are free to use tracy. By default tracy shows all the CPU prof
 > Note 1: Alot more commands are available, for example you can customize the zone name, or add extra information (like the node_path, or the function arguments values, etc..). Please review the tracy documentation.
 
 > Note 2: The bare minimum is to add the `FrameMark;` and `ZoneScoped;` macros inside the platform specific `::run() {` function:
-> 
+>
 > **Linux**
 > ```c++
 > void OS_LinuxBSD::run() {
 > 	force_quit = false;
-> 
+>
 > 	if (!main_loop) {
 > 		return;
 > 	}
-> 
+>
 > 	main_loop->init();
-> 
+>
 > 	//uint64_t last_ticks=get_ticks_usec();
-> 
+>
 > 	//int frames=0;
 > 	//uint64_t frame=0;
-> 
+>
 > 	while (!force_quit) {
 > 		FrameMark;
 > 		ZoneScoped;
-> 
+>
 > 		process_xevents(); // get rid of pending events
 > #ifdef JOYDEV_ENABLED
 > 		joypad->process_joypads();
@@ -95,7 +100,7 @@ At this point you are free to use tracy. By default tracy shows all the CPU prof
 > 			break;
 > 		}
 > 	};
-> 
+>
 > 	main_loop->finish();
 > }
 > ```
@@ -178,7 +183,7 @@ Variant Variant::call(const StringName &p_method, VARIANT_ARG_DECLARE) {
 +                       funcdata.call(ret, *this, p_args, p_argcount, r_error);
 +               }
         }
- 
+
         if (r_error.error == Variant::CallError::CALL_OK && r_ret) {
 ```
 
@@ -203,16 +208,16 @@ If you want to have some extra info about the time spent on the physics, idle, r
 ```diff
 @@ -2194,6 +2196,8 @@ static uint64_t frame_delta_sync_time = 0;
  #endif
- 
+
  bool Main::iteration() {
 +       ZoneScoped;
 +
         //for now do not error on this
         //ERR_FAIL_COND_V(iterating, false);
- 
+
 @@ -2251,6 +2255,8 @@ bool Main::iteration() {
         bool exit = false;
- 
+
         for (int iters = 0; iters < advance.physics_steps; ++iters) {
 +               ZoneScopedN("Main::iteration::PhysicsProcess");
 +
@@ -222,7 +227,7 @@ If you want to have some extra info about the time spent on the physics, idle, r
 @@ -2270,13 +2276,19 @@ bool Main::iteration() {
                         break;
                 }
- 
+
 -               NavigationServer::get_singleton_mut()->process(frame_slice * time_scale);
 -               message_queue->flush();
 +               {
@@ -230,24 +235,24 @@ If you want to have some extra info about the time spent on the physics, idle, r
 +                       NavigationServer::get_singleton_mut()->process(frame_slice * time_scale);
 +                       message_queue->flush();
 +               }
- 
+
 -               PhysicsServer::get_singleton()->step(frame_slice * time_scale);
 +               {
 +                       ZoneScopedN("Main::iteration::PhysicsProcess::Physics");
 +                       PhysicsServer::get_singleton()->step(frame_slice * time_scale);
- 
+
 -               Physics2DServer::get_singleton()->end_sync();
 -               Physics2DServer::get_singleton()->step(frame_slice * time_scale);
 +                       Physics2DServer::get_singleton()->end_sync();
 +                       Physics2DServer::get_singleton()->step(frame_slice * time_scale);
 +               }
- 
+
                 message_queue->flush();
- 
+
 @@ -2295,11 +2307,14 @@ bool Main::iteration() {
- 
+
         uint64_t idle_begin = OS::get_singleton()->get_ticks_usec();
- 
+
 -       if (OS::get_singleton()->get_main_loop()->idle(step * time_scale)) {
 -               exit = true;
 +       {
@@ -260,7 +265,7 @@ If you want to have some extra info about the time spent on the physics, idle, r
         }
 -       visual_server_callbacks->flush();
 -       message_queue->flush();
- 
+
         VisualServer::get_singleton()->sync(); //sync if still drawing from previous frames.
 ```
 
